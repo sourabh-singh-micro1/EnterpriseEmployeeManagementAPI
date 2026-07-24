@@ -1,15 +1,17 @@
 using Asp.Versioning;
-using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Mvc;
+using EnterpriseEmployeeManagementAPI.Extensions;
+using EnterpriseEmployeeManagementAPI.Logging;
+using EnterpriseEmployeeManagementAPI.Middleware;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Logging.ClearProviders();
-builder.Logging.AddJsonConsole(options => options.IncludeScopes = true);
+builder.AddStructuredLogging();
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
-builder.Services.AddHealthChecks();
+builder.Services.AddEmployeeManagement(builder.Configuration);
 builder.Services
     .AddApiVersioning(options =>
     {
@@ -35,35 +37,44 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-app.UseExceptionHandler(exceptionHandlerApp =>
-{
-    exceptionHandlerApp.Run(async context =>
-    {
-        var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
-        var logger = context.RequestServices
-            .GetRequiredService<ILoggerFactory>()
-            .CreateLogger("GlobalExceptionHandler");
-
-        logger.LogError(exception, "Unhandled exception while processing {Method} {Path}",
-            context.Request.Method, context.Request.Path);
-
-        await Results.Problem(
-            statusCode: StatusCodes.Status500InternalServerError,
-            title: "An unexpected error occurred.").ExecuteAsync(context);
-    });
-});
+app.UseSerilogRequestLogging();
+app.UseMiddleware<ExceptionMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI(options => options.SwaggerEndpoint("/swagger/v1/swagger.json", "Enterprise Employee Management API v1"));
+    app.UseSwaggerUI(options =>
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Enterprise Employee Management API v1"));
+
+    if (app.Configuration.GetValue("Database:SeedOnStartup", true))
+    {
+        await app.InitializeEmployeeDatabaseAsync();
+    }
 }
 
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = registration => !registration.Tags.Contains("ready")
+});
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = registration => registration.Tags.Contains("ready")
+});
 
-app.Run();
+try
+{
+    await app.RunAsync();
+}
+catch (Exception exception)
+{
+    Log.Fatal(exception, "Application terminated unexpectedly");
+}
+finally
+{
+    await Log.CloseAndFlushAsync();
+}
 
 public partial class Program;
