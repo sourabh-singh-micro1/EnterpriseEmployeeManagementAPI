@@ -1,0 +1,16 @@
+# Solution owners
+* @sourabh-singh-micro1
+/*.sln @sourabh-singh-micro1
+/Directory.Build.props @sourabh-singh-micro1
+/EnterpriseEmployeeManagementAPI/appsettings*.json @sourabh-singh-micro1
+/EnterpriseEmployeeManagementAPI/Configuration/ @sourabh-singh-micro1
+
+# API reviewers
+/EnterpriseEmployeeManagementAPI/Controllers/ @sourabh-singh-micro1
+
+# Backend reviewers
+/EnterpriseEmployeeManagementAPI/Repositories/ @sourabh-singh-micro1
+/EnterpriseEmployeeManagementAPI/Data/ @sourabh-singh-micro1
+
+# DevOps reviewers
+/.github/workflows/ @sourabh-singh-micro1
