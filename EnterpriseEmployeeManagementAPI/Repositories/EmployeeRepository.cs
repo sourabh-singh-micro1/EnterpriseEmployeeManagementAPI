@@ -83,7 +83,9 @@ public sealed class EmployeeRepository(ApplicationDbContext dbContext) : IEmploy
     public async Task UpdateAsync(Employee employee, CancellationToken cancellationToken = default)
     {
         await dbContext.SaveChangesAsync(cancellationToken);
-        await dbContext.Entry(employee).Reference(item => item.Department).LoadAsync(cancellationToken);
+        var departmentReference = dbContext.Entry(employee).Reference(item => item.Department);
+        departmentReference.IsLoaded = false;
+        await departmentReference.LoadAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(Employee employee, CancellationToken cancellationToken = default)
